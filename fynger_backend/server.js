@@ -43,9 +43,9 @@ app.post("/login", async (req, res) => {
   
   res.cookie("access_token", data.session.access_token, {
     httpOnly: true,
-    secure: false,
+    secure: true,
     maxAge: 24*60*60*1000,
-    sameSite: "lax"
+    sameSite: "none"
   });
   
   console.log("usuario",data.session)
