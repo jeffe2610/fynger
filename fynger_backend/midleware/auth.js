@@ -3,15 +3,17 @@ import { supabase} from "../supabaseClient.js"
 export async function verificarSessao(req, res, next) {
   try {
     // 🔹 1. Verifica se veio o token nos cookies
-    const token = req.cookies.access_token;
-    if (!token) {
-      return res.status(401).json({ error: "Não autenticado" });
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      return res.status(401).json({ error: "token não fornecido" });
     }
+
+    const token = authHeader.split(" ")[1]
 
     // 🔹 2. Usa o token para buscar o usuário logado no Supabase
     const { data: authData, error: authError } = await supabase.auth.getUser(token);
     if (authError || !authData?.user) {
-      return res.status(401).json({ error: "Sessão inválida" });
+      return res.status(401).json({ error: "Sessão inválida ou expirada" });
     }
 
     const userId = authData.user.id;

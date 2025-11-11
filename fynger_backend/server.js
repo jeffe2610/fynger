@@ -40,15 +40,11 @@ app.post("/login", async (req, res) => {
   
   if (error) return res.status(400).json({ error: error.message });
   
-  res.cookie("access_token", data.session.access_token, {
-    httpOnly: true,
-    secure: true,
-    maxAge: 24*60*60*1000,
-    sameSite: "none"
-  });
   
-  console.log("usuario",data.session)
-  return res.json({ user: data.user });
+  return res.json({ 
+    token: data.session.access_token,
+    user_id: data.user.id 
+  });
 });
 
 
@@ -113,7 +109,8 @@ app.get("/session", verificarSessao ,async (req, res) => {
   return res.json({
     nome: req.user.nome,
     message: "sessao Valida",
-    grupo_id: req.user.grupo_id
+    grupo_id: req.user.grupo_id,
+    perfil: req.user.perfil
   })
 
   
