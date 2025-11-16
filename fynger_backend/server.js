@@ -283,6 +283,86 @@ app.get("/atualizar-dados",verificarSessao, async(req, res)=>{
 
 
 
+  // ROTAS PARA MODAL DE ATUALIZAÇÕES 
+
+
+app.put("/atualizar-perfil",verificarSessao ,async ( req, res) =>{
+  
+  const userId = req.user.id
+  const{ nome, email, telefone , senha , novaSenha } = req.body
+
+  const updates = {}
+
+  if(nome && nome.trim() !== ""){updates.nome = nome.trim()};
+  if(email && email.trim() !== ""){updates.email = email.trim()};
+  if(telefone && telefone.trim() !== ""){updates.telefone = telefone.trim()};
+
+
+   
+  
+  
+  if (senha && novaSenha){
+      const { data: user, error: userError } = await supabase.auth.signInWithPassword({
+      email:req.user.email,
+      password: senha,
+    });
+   
+    if (userError) return res.status(400).json({ error: userError.message });
+
+    const { data, error } = await supabase.auth.updateUser({password: novaSenha})
+  }
+  
+   if(email && email.trim() !== ""){const { data, error } = await supabase.auth.updateUser({email: email})}
+
+
+
+  try {
+    const { data, error } = await supabase
+      .from("usuarios")
+      .update(updates)
+      .eq("id", userId)
+      .select();
+
+    if (error) {
+      return res.status(500).json({ error: error.message });
+    }
+
+    res.json({ msg: "Perfil atualizado com sucesso!", data });
+  } catch (error) {
+    console.log(error)
+  }
+  
+
+}) 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 // 🔹 Rota simples pra testar se o servidor está rodando
 app.get("/", (req, res) => {
   res.send("Servidor está rodando!");
