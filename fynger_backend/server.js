@@ -5,10 +5,14 @@ import cookieParser from "cookie-parser";
 import { verificarSessao } from "./midleware/auth.js";
 import {format, startOfMonth, endOfMonth} from 'date-fns'
 
+import multer from "multer";
+
 const mes = format(new Date(), 'yyyy-MM')
 const inicioMes= format(startOfMonth(new Date()),"yyyy-MM-dd")
 const fimMes= format(endOfMonth(new Date()),"yyyy-MM-dd")
 
+const storage = multer.memoryStorage(); // salva o arquivo na memória (RAM)
+const upload = multer({ storage });
 
 
 
@@ -240,6 +244,7 @@ app.get("/atualizar-dados",verificarSessao, async(req, res)=>{
   const {data: userData, error: userError} = await supabase
   .from("usuarios")
   .select(`
+    avatar,
     nome,
     email,
     telefone,
@@ -274,7 +279,8 @@ app.get("/atualizar-dados",verificarSessao, async(req, res)=>{
     telefone: userData[0].telefone,
     nomeGrupo: userData[0].grupo.nome,
     categorias: catData,
-    membros: grupoData
+    membros: grupoData,
+    avatar: userData[0].avatar
   }
   
   console.log(dados)
@@ -289,30 +295,28 @@ app.get("/atualizar-dados",verificarSessao, async(req, res)=>{
 app.put("/atualizar-perfil",verificarSessao ,async ( req, res) =>{
   
   const userId = req.user.id
-  const{ nome, email, telefone , senha , novaSenha } = req.body
+  const{ nome, telefone , senha , novaSenha } = req.body
 
   const updates = {}
 
   if(nome && nome.trim() !== ""){updates.nome = nome.trim()};
-  if(email && email.trim() !== ""){updates.email = email.trim()};
   if(telefone && telefone.trim() !== ""){updates.telefone = telefone.trim()};
 
 
    
   
   
-  if (senha && novaSenha){
-      const { data: user, error: userError } = await supabase.auth.signInWithPassword({
-      email:req.user.email,
-      password: senha,
-    });
+   if (senha && novaSenha){
+       const { data: user, error: userError } = await supabase.auth.signInWithPassword({
+       email:req.user.email,
+       password: senha,
+     });
    
-    if (userError) return res.status(400).json({ error: userError.message });
+     if (userError) return res.status(400).json({ error: userError.message });
 
-    const { data, error } = await supabase.auth.updateUser({password: novaSenha})
-  }
+      await supabase.auth.updateUser({password: novaSenha})
+   }
   
-   if(email && email.trim() !== ""){const { data, error } = await supabase.auth.updateUser({email: email})}
 
 
 
@@ -338,13 +342,75 @@ app.put("/atualizar-perfil",verificarSessao ,async ( req, res) =>{
 
 
 
+app.put('/atualiza-avatar', upload.single("avatar"), verificarSessao, async (req, res) => {
+  try {
+    const file = req.file;               // 1 - o multer coloca o arquivo em req.file
+    const userId = req.user.id;          // 2 - userId obtido pelo middleware de auth
+
+    if (!file) {
+      return res.status(400).json({ error: "Nenhum arquivo enviado" });
+    }
+
+    
+    const ext = file.originalname.split('.').pop();
+
+    const filePath = `avatars/${userId}.${ext}`;
+
+
+    const { error: errorFile } = await supabase
+      .storage
+      .from("Avatars")
+      .upload(filePath, file.buffer, {
+        contentType: file.mimetype,
+        upsert: true
+      });
+
+    if (errorFile) throw errorFile;
+
+    
+    
+    const { data: dataUrl, error: errorUrl} = supabase
+      .storage
+      .from("Avatars")
+      .getPublicUrl(filePath)
+
+    if (errorUrl) throw errorUrl
+
+    const publicUrl = `${dataUrl.publicUrl}?t=${Date.now()}`;
+
+    
+    
+    const {error} = await supabase
+    .from("usuarios")
+    .update({'avatar': publicUrl})
+    .eq('id', userId)
+
+    if (error) throw error;
+
+ 
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ error: "Erro ao atualizar avatar" });
+  }
+});
 
 
 
 
+app.put("/atualizar-grupo" ,verificarSessao ,async (req,res) => {
+const{nomeGrupo} = req.body
 
 
+const  {data , error} = await supabase
+.from("grupo")
+.update({"nome":nomeGrupo})
+.eq('id',req.user.grupo_id)
+.select()
+if (error) return res.status(400).json(error.message)
 
+ return res.json(data)
+  
+})
 
 
 
