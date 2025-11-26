@@ -64,7 +64,7 @@ app.post("/logout", (req, res) => {
 
 // 🔹 Rota de cadastro
 app.post("/signup", async (req, res) => {
-  const { email, password, nome, tel } = req.body;
+  const { email, password, nome, tel, grupoId } = req.body;
   
   const { data: authData, error: authError } = await supabase.auth.signUp({
     email,
@@ -77,34 +77,56 @@ app.post("/signup", async (req, res) => {
   
   const userId = authData.user.id;
 
-  const {data:dataGroup, error: errorGroup} = await supabase
-  .from("grupo")
-  .insert([{
-    nome: `grupo do ${nome}`,
-    criado_por: userId
-  }]).select()
-  
-  if(errorGroup){res.status(400).json({error: errorGroup.message})}
-  
- 
+  if(!grupoId){
+    const {data:dataGroup, error: errorGroup} = await supabase
+    .from("grupo")
+    .insert([{
+      nome: `grupo do ${nome}`,
+      criado_por: userId
+    }]).select()
+    
+    if(errorGroup) return res.status(400).json({error: errorGroup.message})
+    
+    const { data: userData , error: insertError } = await supabase.from('usuarios').insert([
+      { nome: nome,
+        email: email,
+        telefone: tel,
+        perfil: "admin",
+        id : userId, 
+        grupo_id: dataGroup[0].id
+      }
+    ]).select()
+    if (insertError) return res.status(400).json({ error: insertError.message });
+    
+    return res.json({
+    message: "cadastro efetuado com sucesso",
+    user: authData,
+    group: dataGroup,
+    cadastro: userData,
+  });
+  }
 
-
+  
+    
   const { data: userData , error: insertError } = await supabase.from('usuarios').insert([
     { nome: nome,
       email: email,
       telefone: tel,
-      perfil: "admin",
+      perfil: "membro",
       id : userId, 
-      grupo_id: dataGroup[0].id
+      grupo_id: grupoId
     }
   ]).select()
   if (insertError) return res.status(400).json({ error: insertError.message });
+ 
+
+
 
 
   return res.json({
     message: "cadastro efetuado com sucesso",
     user: authData,
-    group: dataGroup,
+    
     cadastro: userData,
   });
 });
