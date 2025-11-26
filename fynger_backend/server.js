@@ -310,7 +310,7 @@ app.get("/atualizar-dados",verificarSessao, async(req, res)=>{
     avatar: userData[0].avatar
   }
   
-  console.log(dados)
+  
   return res.json(dados)
 })
 
