@@ -128,7 +128,7 @@ app.get("/session", verificarSessao ,async (req, res) => {
 //rota de cadatro de transacao 
 
 app.post("/transacao",verificarSessao ,async (req, res)=>{
-  const{ nome, valor, descricao,categoriaselecionada, parcelas, data, vencimento  }= req.body
+  const{ nome, valor, descricao,categoriaselecionada, parcelas, data, vencimento, tipo  }= req.body
 
   const{ data:transData, error:transError} = await supabase.from("transacoes").insert([
     { tipo:nome,
@@ -145,7 +145,31 @@ app.post("/transacao",verificarSessao ,async (req, res)=>{
   ]).select()
  
   if(transError) return res.status(400).json({error: transError.message})
-    return res.json({cadastro: transData[0]})
+  console.log(parcelas)
+  if (parcelas !== 1)  {
+    console.log('entrou no if')
+    const {data: recorrenciaData,  error:recorrenciaError } = await supabase
+    .from('recorrencia')
+    .insert([
+      {
+        id:transData[0].id,
+        descricao: nome,
+        valor:valor,
+        qtdParcelas:parcelas,
+        proxima_execucao:vencimento,
+        ativo:true,
+        valorParcela: valor/parcelas,
+        tipo:tipo,
+        grupo_id: req.user.grupo_id ,
+        categoria_id: categoriaselecionada
+
+      }
+    ]).select()
+    if(recorrenciaError) return res.status(400).json({error: recorrenciaError.message})
+      
+  }
+  
+     return res.json({cadastro: transData[0]}) 
   
 });
 
@@ -190,16 +214,7 @@ app.get("/transacao",verificarSessao,async (req, res)=>{
 })
 
 
-// rota pra categorias
-app.get('/gastos-categoria',verificarSessao,async (req,res)=>{
-  const {data:catData, error:catError } = await supabase
-  .from('gastos_por_categoria')
-  .select("*")
-  .eq('grupo_id', req.user.grupo_id)
-  .eq('mes', mes)
-  if(catError) return res.status(400).json(catError.message)
-    return res.json(catData)
-})
+
 
 app.get('/categorias',async (req,res)=>{
   const{data ,error} = await supabase
@@ -464,7 +479,47 @@ app.delete("/del-transacao" ,async (req,res) => {
 
 
 
+app.get("/transacoes-grafico" , async (req,res) => {
+  const { data:transData, error:transError} = await supabase
+  .from("transacoes")
+  .select(`
+      id,
+      valor,
+      categorias ( nome, tipo ),
+      data,
+      recorrencia (valorParcela)
+    `)
+    
+    .gte('data', inicioMes)
+    .lte("data", fimMes)
+   
+  
+  
+  if(transError) return res.status(400).json(transError.message)
+    
+  const resultado = transData.filter((item)=>item.categorias.tipo === "despesa").map((item)=>({
+    id: item.id,
+    valor: item.recorrencia?.valorParcela || item.valor,
+    categoria:item.categorias?.nome || "sem categoria",
+    data: item.data,
+  }))
+  
 
+  const agrupado = resultado.reduce((acumulado, item)=>{
+    if(!acumulado[item.categoria]){
+      acumulado[item.categoria] = 0
+    }
+    acumulado[item.categoria] += item.valor
+    return acumulado
+  },{})
+
+  const respostaFinal= Object.entries(agrupado).map(([categoria, valor]) => ({
+  categoria,
+  valor,
+}))
+  
+    return res.json(respostaFinal)
+})
 
 
 
