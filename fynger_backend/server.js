@@ -1,6 +1,6 @@
 import express, { json } from "express";
 import cors from "cors";
-import { supabase } from "./supabaseClient.js";
+import { supabase, supabaseAdmim } from "./supabaseClient.js";
 import cookieParser from "cookie-parser";
 import { verificarSessao } from "./midleware/auth.js";
 import { format, startOfMonth, endOfMonth } from "date-fns";
@@ -41,11 +41,6 @@ app.post("/login", async (req, res) => {
   });
 });
 
-// LOGOUT
-app.post("/logout", (req, res) => {
-  res.clearCookie("access_token");
-  return res.json({ message: "Logout feito" });
-});
 
 // Rota de cadastro
 app.post("/signup", async (req, res) => {
@@ -62,7 +57,7 @@ app.post("/signup", async (req, res) => {
   let grupo = null
   if(!grupoId){
 
-    const { data: dataGroup, error: errorGroup } = await supabase
+    const { data: dataGroup, error: errorGroup } = await supabaseAdmim
       .from("grupo")
       .insert([
         {
@@ -79,7 +74,7 @@ app.post("/signup", async (req, res) => {
   }
   
 
-  const { data: userData, error: insertError } = await supabase
+  const { data: userData, error: insertError } = await supabaseAdmim
     .from("usuarios")
     .insert([
       {
